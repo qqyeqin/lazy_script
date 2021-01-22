@@ -2,19 +2,18 @@ const fs = require('fs');
 const path = require('path');
 const _ = require('lodash');
 
-const {getNowMoment, getNowDate, getLogFile, sleep, parallelRun} = require('./lib/common');
-const {getCookieData} = require('./lib/env');
+const {getNowMoment, getNowDate, getLogFile} = require('./lib/common');
 const serverChan = require('./lib/serverChan');
 const mailer = require('./lib/mailer');
-const TemporarilyOffline = {start: _.noop, cron: _.noop};
 
 const Common = require('./jd/base/common');
 
 const Sign = require('./jd/sign');
-const SignShop = require('./jd/sign/shop');
 const SignRemote = require('./jd/sign/remote');
+const SignBeanGroup = require('./jd/sign/beanGroup');
 const PlantBean = require('./jd/plantBean');
 const SuperMarket = require('./jd/superMarket');
+const SuperMarketRedeem = require('./jd/superMarket/redeem');
 const Pet = require('./jd/pet');
 const PetRemote = require('./jd/pet/remote');
 const Fruit = require('./jd/fruit');
@@ -25,66 +24,81 @@ const jdFactory = require('./jd/jdFactory');
 const HarmonyGoldenEgg = require('./jd/wfh/harmonyGoldenEgg');
 const HarmonyBlindBox = require('./jd/wfh/harmonyBlindBox');
 const HarmonyNewShop = require('./jd/wfh/harmonyNewShop');
+const Discover = require('./jd/discover');
 const Earn = require('./jd/earn');
 const Cash = require('./jd/cash');
 const CashShare = require('./jd/cash/share');
+const Wish = require('./jd/wish');
 const StatisticsBean = require('./jd/statistics/bean');
 const Ssjj = require('./jd/ssjj');
 const Trump = require('./jd/trump');
 const Smfe = require('./jd/smfe');
-const IsvShopSign = require('./jd/isvjcloud/shopSign');
+const AppletSign = require('./jd/applet/sign');
 const CrazyJoy = require('./jd/crazyJoy');
+const Harmony1 = require('./jd/wfh/harmony1');
+const Harmony2 = require('./jd/wfh/harmony2');
+const Harmony3 = require('./jd/wfh/harmony3');
+const Harmony4 = require('./jd/wfh/harmony4');
+const HarmonyHealthyDay = require('./jd/wfh/harmonyHealthyDay');
 const Necklace = require('./jd/necklace');
 const SecondKillRedPacket = require('./jd/secondKill/redPacket');
 const DreamFactory = require('./jd/dreamFactory');
 const JxCfd = require('./jd/jxCfd');
+const GoldenEgg = require('./jd/wfh/goldenEgg');
 const Car = require('./jd/car');
 const VipClubShare = require('./jd/vipClub/shake');
 const KoiRedPacket = require('./jd/koiRedPacket');
+const HrSign = require('./jd/earn/hrSign');
 const Joy = require('./jd/joy');
-const Family = require('./jd/family');
-const BianPao = require('./jd/family/bianPao');
-const JxHongBao = require('./jd/family/jxHongBao');
-const Live = require('./jd/live');
-const SignBeanHome = require('./jd/sign/beanHome');
-const GlobalChallenge = require('./jd/globalMart/challenge');
-const BeautyMakeup = TemporarilyOffline || require('./jd/beautyMakeup');
-const ShopGift = require('./jd/wq/shopGift');
+const Nian = require('./jd/nian');
+const NianApplet = require('./jd/nian/applet');
+const BrandCity = require('./jd/brandCity');
 
 const nowHour = getNowMoment().hour();
-const nowDate = getNowDate();
-const errorOutput = [];
 
-async function multipleRun(targets) {
-  return parallelRun({
-    list: targets,
-    runFn: doRun,
-    onceDelaySecond: 1,
+const getCookieData = (name, envCookieName = 'JD_COOKIE', shareCode, getShareCodeFn) => {
+  shareCode && (shareCode = [].concat(shareCode));
+  getShareCodeFn = getShareCodeFn || (() => shareCode);
+  const getShareCodes = (name, targetIndex) => {
+    if (!name) return [];
+    name = name.toUpperCase();
+    const key = `JD_${name}_SHARE_CODE`;
+    const shareCodes = [];
+    for (let i = 0; i < 10; i++) {
+      const shareCode = i === 0 ? process.env[key] : process.env[`${key}_${i}`];
+      shareCode && i !== targetIndex && shareCodes.push(shareCode);
+    }
+    return shareCodes;
+  };
+  const cookies = getEnvByName(envCookieName);
+
+  return cookies.map((cookie, index) => {
+    const allShareCodes = getShareCodes(name, index);
+    const shareCodes = getShareCodeFn(index, allShareCodes) || allShareCodes;
+    return {cookie, shareCodes};
   });
+
+  function getEnvByName(name) {
+    let result = [];
+    for (let i = 0; i < 5; i++) {
+      const envVal = (i === 0 ? process.env[name] : process.env[`${name}_${i}`]);
+      envVal && result.push(envVal);
+    }
+    return result;
+  }
+};
+
+async function runScript(fn, name = fn.name) {
+  // TODO name 默认值需要调整从 fn 中获取
+  return fn(getCookieData(name));
 }
 
 async function doRun(target, cookieData = getCookieData(target.scriptName), method = 'start') {
-  let result;
-  try {
-    result = await target[method](cookieData);
-  } catch (e) {
-    errorOutput.push(e);
-    console.log(e);
-  }
-  return result;
+  return target[method](cookieData);
 }
 
 async function doCron(target, cookieData = getCookieData()) {
   return doRun(target, cookieData, 'cron');
-}
-
-// 本地测试
-async function doRun1(target, index = 0, needScriptName = false) {
-  await doRun(target, getCookieData(needScriptName ? target.scriptName : void 0)[index]);
-}
-
-async function doCron1(target, index = 0) {
-  await doCron(target, getCookieData()[index]);
 }
 
 async function main() {
@@ -96,32 +110,33 @@ async function main() {
     {
       valid: 0,
       run: async () => {
-        // await doCron(SuperMarket);
-        await doRun(KoiRedPacket);
-        await doRun(IsvShopSign);
-        await doRun(SignShop);
-        await doRun(SignBeanHome);
+        await doCron(SuperMarket);
         await doRun(Sign);
         await doRun(StatisticsBean);
+        await doRun(SignRemote);
         await doRun(Fruit);
         await doRun(TurnTableFarm);
         await doRun(Pet);
         await doRun(jdFactory, getCookieData(jdFactory.scriptName)[0]);
         await doRun(Earn, getCookieData(Earn.scriptName, 'JD_EARN_COOKIE'));
         await doRun(Cash);
+        await doRun(Wish);
         await doRun(JxCfd);
 
         // 1点的时候没有action, 所以需要提前
-        // await doRun(Harmony7);
-        // await doRun(Wfh);
+        await doRun(HarmonyGoldenEgg);
+        await doRun(HarmonyBlindBox);
+        await doRun(HarmonyNewShop);
+        await doRun(HarmonyHealthyDay);
+        await doRun(Harmony1);
+        await doRun(Harmony2);
+        await doRun(Harmony3);
+        await doRun(Harmony4);
+        await doRun(GoldenEgg);
+        await doRun(Wfh);
         await doRun(Trump);
         await doRun(Smfe);
         await doRun(PlantBean);
-        await doRun(Family);
-        await doRun(Live);
-        await doRun(JxHongBao);
-        await doRun(BianPao);
-        await multipleRun([HarmonyGoldenEgg, HarmonyBlindBox, HarmonyNewShop]);
       },
     },
     {
@@ -134,6 +149,7 @@ async function main() {
       valid: 2,
       async run() {
         await doRun(Necklace);
+        await doRun(AppletSign, getCookieData(void 0, 'JD_EARN_COOKIE'));
         await doRun(SecondKillRedPacket);
         await doRun(Car);
         await doRun(VipClubShare);
@@ -149,6 +165,9 @@ async function main() {
       valid: 5,
       run: async () => {
         await doCron(SuperMarket);
+        await doRun(Nian);
+        await doRun(NianApplet);
+        await doRun(BrandCity);
       },
     },
     {
@@ -177,9 +196,6 @@ async function main() {
         await doRun(DreamFactory);
         await doCron(SuperMarket);
         await doRun(SuperMarket);
-        await doRun(Family);
-        await doRun(Sign);
-        await doRun(BeautyMakeup);
         // await doRun(HrSign, getCookieData(void 0, 'JD_EARN_COOKIE'));
       },
     },
@@ -202,12 +218,13 @@ async function main() {
         await doCron(Fruit);
         await doCron(Pet);
         await doCron(Joy);
-        await doRun(BeautyMakeup);
       },
     },
     {
       valid: 14,
       run: async () => {
+        await doRun(Wish);
+        await doRun(Nian, getCookieData());
       },
     },
     {
@@ -220,7 +237,6 @@ async function main() {
     {
       valid: 16,
       run: async () => {
-        await doCron(Joy);
         await doRun(PlantBean, getCookieData());
       },
     },
@@ -242,7 +258,6 @@ async function main() {
         await doCron(SuperMarket);
         await doCron(Fruit);
         await doCron(Pet);
-        await doRun(BeautyMakeup);
       },
     },
     {
@@ -250,8 +265,9 @@ async function main() {
       run: async () => {
         await doRun(jdFactory, getCookieData()[0]);
         await doCron(Pet);
+        await doRun(CashShare);
         await doRun(Necklace);
-        await doRun(KoiRedPacket);
+        await doRun(Nian, getCookieData());
       },
     },
     {
@@ -261,15 +277,24 @@ async function main() {
         await doCron(PlantBean);
         await doRun(CrazyJoy);
         await doCron(Joy);
-
-        // 24点后定时启动
-        await doRun(SignShop);
-        await multipleRun([IsvShopSign]);
-        await sleep(2);
-        await doRun(SignRemote);
+        // await doRun(SuperMarketRedeem);
       },
     },
   ];
+
+
+  async function doRun1(target, index = 0, cookieName) {
+    await doRun(target, getCookieData(target.scriptName, cookieName)[index]);
+  }
+
+  async function doCron1(target, index = 0) {
+    await doCron(target, getCookieData()[index]);
+  }
+
+  async function getShareResult() {
+    await doRun(CashShare);
+    await doRun(Earn, getCookieData(void 0, 'JD_EARN_COOKIE'));
+  }
 
   return;
 
@@ -287,6 +312,7 @@ async function main() {
     await doCron(CrazyJoy);
 
     if (nowHour % 2 === 0) {
+      await doCron(Nian);
       await doCron(PlantBean);
     }
   }
@@ -303,15 +329,8 @@ main().then(function () {
     content = fs.readFileSync(logFile);
   }
   content += resultContent;
-  return;
-  if (!_.isEmpty(errorOutput)) {
-    mailer.send({
-      subject: ['lazy_script_error', nowDate, nowHour].join('_'),
-      text: errorOutput.join('\n'),
-    });
-  }
   if (!content) return;
-  const title = ['lazy_script', nowDate, nowHour].join('_');
+  const title = ['lazy_script', getNowDate(), nowHour].join('_');
   mailer.send({
     subject: title, text: content,
   });

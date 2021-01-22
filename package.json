@@ -22,7 +22,7 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "node src/dev.js",
-    "build:yaml": "node src/yaml/schedule.js",
+    "build:yaml": "node src/yaml/test.js",
     "dev:updateShopToken": "node src/jd/sign/updateShopToken.js",
     "start:shopGift": "node src/jd/wq/shopGift.js start",
     "start:shopSign": "node src/jd/sign/shop.js start",
