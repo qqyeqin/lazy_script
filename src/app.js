@@ -271,6 +271,7 @@ async function main() {
     },
   ];
 
+  await doRun1(require('./jd/beautyMakeup'));
   return;
 
   await cronLoop();

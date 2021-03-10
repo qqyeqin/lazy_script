@@ -19,6 +19,10 @@ class BeautyMakeup extends Template {
   static async doMain(api) {
     const self = this;
 
+    return timedExecution([9, 55], () => {
+      self.log('done');
+    })
+
     let token = '';
     // 部分任务完成情况
     let checkUpData = {};
