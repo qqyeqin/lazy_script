@@ -11,7 +11,7 @@ const _sleep = require('util').promisify(setTimeout);
  */
 const sleep = (seconds = 1) => _sleep(seconds * 1000);
 
-const getNowMoment = (tz = 'Asia/Shanghai', date) => moment(date).tz(tz);
+const getNowMoment = (date = void 0, tz = 'Asia/Shanghai') => moment.tz(date, tz);
 const getNowDate = (format = 'YYYY-MM-DD') => getNowMoment().format(format);
 const getNowTime = getNowDate.bind(0, 'HH:mm:ss');
 

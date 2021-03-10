@@ -3,14 +3,14 @@ const _ = require('lodash');
 
 async function timedExecutionWithDate(date, next) {
   const nowMoment = getNowMoment();
-  const targetMoment = getNowMoment(void 0, date);
+  const targetMoment = getNowMoment(date);
   console.log('目标时间:');
   console.log(targetMoment);
   if (nowMoment.isAfter(targetMoment)) return;
   const milliseconds = targetMoment.diff(nowMoment, 'millisecond');
   console.log(`milliseconds: ${milliseconds}`);
   // 增加误差
-  // await require('util').promisify(setTimeout)(milliseconds + 10);
+  await require('util').promisify(setTimeout)(milliseconds + 10);
   return next();
 }
 
