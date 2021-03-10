@@ -19,7 +19,7 @@ class BeautyMakeup extends Template {
   static async doMain(api) {
     const self = this;
 
-    return timedExecution([9, 55], () => {
+    return timedExecution([10, 25], () => {
       self.log('done');
     })
 
