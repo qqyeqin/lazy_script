@@ -292,18 +292,20 @@ async function main() {
   }
 }
 
+function getContent(fileName) {
+  const logFile = getLogFile(fileName);
+  return fs.existsSync(logFile) ? fs.readFileSync(logFile) : '';
+}
+
 main().then(function () {
   const resultPath = path.resolve(__dirname, '../dist/result.txt');
   if (!fs.existsSync(resultPath)) return;
   return fs.readFileSync(resultPath);
 }).then((resultContent = '') => {
-  const logFile = getLogFile('app');
   let content = '';
-  if (fs.existsSync(logFile)) {
-    content = fs.readFileSync(logFile);
-  }
+  content += getContent('request');
+  content += getContent('app');
   content += resultContent;
-  return;
   if (!_.isEmpty(errorOutput)) {
     mailer.send({
       subject: ['lazy_script_error', nowDate, nowHour].join('_'),
@@ -315,6 +317,7 @@ main().then(function () {
   mailer.send({
     subject: title, text: content,
   });
+  return;
   serverChan.send(title, content).then(() => {
     console.log('发送成功');
   });
